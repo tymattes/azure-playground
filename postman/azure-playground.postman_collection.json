@@ -1,0 +1,33 @@
+{
+  "info": {
+    "name": "azure-playground",
+    "description": "Smoke tests for the azure-playground API. Pick an environment (local, dev, staging, prod) to set baseUrl.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"status is 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"body is {status: ok}\", () => pm.expect(pm.response.json()).to.eql({ status: \"ok\" }));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
