@@ -7,7 +7,7 @@ Hands-on lab for Azure deployment patterns: Terraform IaC, GitHub Actions OIDC p
 - [ ] v3 – Azure Functions
 
 ## Structure
-(fill in as folders appear)
+- [`docs/pipeline.md`](docs/pipeline.md) — how changes flow from PR → dev → staging → prod
 
 ## Notes / decisions
-(why OIDC, why public, etc. — add as you go)
+- **dev → staging → prod:** one subscription, with a separate resource group, state container and deploy identity per environment. Each identity can only touch its own environment. Dev accepts branch builds; staging and prod take `main` only, and prod waits for manual approval.
