@@ -18,26 +18,33 @@ AKS is out of scope for now. Repo is **public** (needed for free branch protecti
 
 ## Decisions so far
 - **Auth:** GitHub Actions → Azure via OIDC (federated credentials). No client secrets, no publish profiles.
+- **Environments:** `dev` → `staging` → `prod`, same names everywhere (GitHub, Azure, Terraform). One subscription, one resource group per env. `dev` is the playground (any branch); `staging` is the prod-like gate (`main` only).
 - **Terraform from day one**, split into:
-  - `infra/bootstrap/` — run once locally with `az login`: tfstate storage, app resource group(s), Entra app registration + federated credentials (`pull_request` for plan, `environment:production` for apply), role assignments (Contributor on the app RG, Storage Blob Data Contributor on the state container). Role assignments live here so the pipeline never needs Owner.
-  - `infra/<target>/` (`appservice/`, `containerapps/`, `functions/`) — run by the pipeline. Separate state key per target.
-- **Pipeline shape:** PR → test + `terraform fmt/validate/plan`. Merge to `main` → test → `terraform apply` → deploy app → `/health` smoke check.
-- **Repo guardrails:** branch protection on `main` (PR + required checks), GitHub environment `production`.
-- **One repo, side-by-side targets.** Each target gets its own workflow with path filters.
-- **Milestones saved as git tags** (e.g. `v1-app-service`). `terraform destroy` old targets after tagging to save cost.
-- Resource naming prefix: short (e.g. `adp`) with a `random_string` suffix for globally unique names.
+  - `infra/bootstrap/` — run once locally with `az login`. Per env: a resource group, a tfstate container, and an Entra app registration (federated credential `environment:<env>`) with Contributor on that env's RG and Storage Blob Data Contributor on that env's state container only. The dev identity can't touch prod, and the pipeline never needs Owner.
+  - `infra/<target>/` (`appservice/`, `containerapps/`, `functions/`) — run by the pipeline. Same code for every env; differences in `<env>.tfvars`. State: `<target>.tfstate` in the env's container, chosen with `-backend-config`; backend uses `use_azuread_auth = true` (RBAC, not storage keys). No workspaces.
+- **Pipeline:**
+  - **PR:** test + `terraform fmt/validate/plan`. *Open question:* which identity runs PR plans.
+  - **Manual (`workflow_dispatch`):** test + build a chosen branch → deploy to **dev** only. The next merge resets dev to `main`.
+  - **Merge to `main`:** test + build one artifact (*open question for v1:* ship deps in the zip, or let App Service `pip install` per env) → **dev** → **staging** (automatic) → **prod** (⏸ approval first — the only manual gate). Each env: plan + apply, deploy the **same** artifact, `/health` check.
+  - A `concurrency:` group per env so runs queue instead of racing.
+- **Guardrails:** `main` requires a PR (add required status checks once workflows exist). GitHub envs: `staging` and `prod` deploy from `main` only (deployment branch policy); `prod` requires my approval. CODEOWNERS on `infra/` + `.github/`; Dependabot for pip + Actions.
+- **Rollback:** app → redeploy the previous artifact; infra → revert the PR and re-apply.
+- **One repo, side-by-side targets**, each with its own workflow (path filters). Milestones saved as git tags (e.g. `v1-app-service`), then `terraform destroy` all envs to save cost.
+- **Naming:** `adp-<env>-…` plus a `random_string` suffix for globally unique names. Cheapest SKUs.
 
 ## Planned layout
 ```
-infra/bootstrap/  infra/appservice/  infra/containerapps/  infra/functions/
-src/api/          src/functions/
+infra/bootstrap/
+infra/appservice/  infra/containerapps/  infra/functions/   (each with dev/staging/prod.tfvars)
+src/api/  src/functions/
 .github/workflows/appservice.yml  containerapps.yml  functions.yml
+docs/pipeline.md   (pipeline diagrams; update in the same PR as workflow changes)
 ```
 
 ## Later iterations (after v1)
-Staging slot + swap · separate read-only plan identity · required reviewers on `production` · modules + dev/prod envs · Key Vault + managed identity · tflint/checkov + drift detection.
+Read-only plan identity (PR plans + approve the exact saved prod plan) · App Service deployment slot + swap for zero-downtime prod deploys · modules · Key Vault + managed identity · tflint/checkov + drift detection.
 
 ## Current milestone
-- [ ] Step 0: Azure account + budget alert, `az`/`terraform`/Python 3.12 installed, Terraform entries added to `.gitignore` (commit `.terraform.lock.hcl`)
+- [ ] Step 0: Azure account + budget alert, `az`/`terraform`/Python 3.12 installed, Terraform entries added to `.gitignore` (commit `.terraform.lock.hcl` and the `*.tfvars` files — they hold no secrets here)
 - [ ] Local FastAPI app with `GET /health` → `{"status": "ok"}`, one pytest test (FastAPI `TestClient`), runs with `uvicorn`
 - [ ] `infra/bootstrap` — state storage only first; init/plan/apply by hand, inspect in the portal
