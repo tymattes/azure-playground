@@ -21,6 +21,8 @@ AKS is out of scope for now. Repo is **public** (needed for free branch protecti
 - **Environments:** `dev` → `staging` → `prod`, same names everywhere (GitHub, Azure, Terraform). One subscription, one resource group per env. `dev` is the playground (any branch); `staging` is the prod-like gate (`main` only).
 - **Terraform from day one**, split into:
   - `infra/bootstrap/` — run once locally with `az login`. Per env: a resource group, a tfstate container, and an Entra app registration (federated credential `environment:<env>`) with Contributor on that env's RG and Storage Blob Data Contributor on that env's state container only. The dev identity can't touch prod, and the pipeline never needs Owner.
+    - **One storage account per env** (in that env's RG), not a shared one: RG Contributor can `listKeys`, and a key bypasses container-scoped RBAC, so only separate accounts truly isolate envs. Shared key access disabled, blob versioning on; delete lock later.
+    - **Bootstrap's own state is local** (gitignored, backed up outside the repo): it creates the remote backend (chicken-and-egg), has one operator, rarely changes, and is recoverable via `import` blocks. In a team it would move to a separately governed account.
   - `infra/<target>/` (`appservice/`, `containerapps/`, `functions/`) — run by the pipeline. Same code for every env; differences in `<env>.tfvars`. State: `<target>.tfstate` in the env's container, chosen with `-backend-config`; backend uses `use_azuread_auth = true` (RBAC, not storage keys). No workspaces.
 - **Pipeline:**
   - **PR:** test + `terraform fmt/validate/plan`. *Open question:* which identity runs PR plans.
@@ -46,5 +48,9 @@ Read-only plan identity (PR plans + approve the exact saved prod plan) · App Se
 
 ## Current milestone
 - [ ] Step 0: Azure account + budget alert, `az`/`terraform`/Python 3.12 installed, Terraform entries added to `.gitignore` (commit `.terraform.lock.hcl` and the `*.tfvars` files — they hold no secrets here)
-- [ ] Local FastAPI app with `GET /health` → `{"status": "ok"}`, one pytest test (FastAPI `TestClient`), runs with `uvicorn`
-- [ ] `infra/bootstrap` — state storage only first; init/plan/apply by hand, inspect in the portal
+  - [x] Python 3.12 (via uv)
+  - [x] `az` + `terraform` installed, Terraform entries in `.gitignore`
+  - [ ] Budget alert confirmed saved
+- [x] Local FastAPI app with `GET /health` → `{"status": "ok"}`, one pytest test (FastAPI `TestClient`), runs with `uvicorn`
+- [x] `infra/bootstrap` — state storage only first; init/plan/apply by hand, inspect in the portal
+- [ ] `infra/bootstrap` identities — per-env Entra app registration, federated credential, role assignments; delete locks on state accounts
