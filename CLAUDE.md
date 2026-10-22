@@ -47,10 +47,10 @@ docs/pipeline.md   (pipeline diagrams; update in the same PR as workflow changes
 Read-only plan identity (PR plans + approve the exact saved prod plan) · App Service deployment slot + swap for zero-downtime prod deploys · modules · Key Vault + managed identity · tflint/checkov + drift detection.
 
 ## Current milestone
-- [ ] Step 0: Azure account + budget alert, `az`/`terraform`/Python 3.12 installed, Terraform entries added to `.gitignore` (commit `.terraform.lock.hcl` and the `*.tfvars` files — they hold no secrets here)
+- [x] Step 0: Azure account + budget alert, `az`/`terraform`/Python 3.12 installed, Terraform entries added to `.gitignore` (commit `.terraform.lock.hcl` and the `*.tfvars` files — they hold no secrets here)
   - [x] Python 3.12 (via uv)
   - [x] `az` + `terraform` installed, Terraform entries in `.gitignore`
-  - [ ] Budget alert confirmed saved
+  - [x] Budget alert confirmed saved
 - [x] Local FastAPI app with `GET /health` → `{"status": "ok"}`, one pytest test (FastAPI `TestClient`), runs with `uvicorn`
 - [x] `infra/bootstrap` — state storage only first; init/plan/apply by hand, inspect in the portal
 - [ ] `infra/bootstrap` identities — per-env Entra app registration, federated credential, role assignments; delete locks on state accounts
