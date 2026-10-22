@@ -48,7 +48,7 @@ Each env deploys the **same artifact** built at the start of run ③, and stops 
 Every env job (dev, staging, prod) applies its own infrastructure and then deploys the app, in this order:
 
 1. **Log in:** OIDC → that env's identity (`azure/login`, `ARM_USE_OIDC=true` for Terraform).
-2. **`terraform init`:** `-backend-config` points at `tfstate-<env>`, key `<target>.tfstate`. The backend uses `use_azuread_auth = true`, because access is through Entra ID roles, not storage keys.
+2. **`terraform init`:** `-backend-config` points at that env's state account (`adp<env>tf<sfx>`, container `tfstate`), key `<target>.tfstate`. The backend uses `use_azuread_auth = true`, because access is through Entra ID roles, not storage keys.
 3. **`terraform plan -var-file=<env>.tfvars -out=tfplan`**
 4. **`terraform apply tfplan`:** updates that env's resources and state.
 5. **`terraform output`:** gets the app name and URL for the next steps.
@@ -61,8 +61,8 @@ Infrastructure is applied before the app is deployed, so a PR that changes both 
 ```mermaid
 flowchart LR
     GH["GitHub job<br/>environment: &lt;env&gt;"] -- "OIDC token" --> ID["Entra app registration<br/>(one per env)"]
-    ID -- "Contributor" --> RG["rg-adp-&lt;env&gt;"]
-    ID -- "Blob Data Contributor" --> ST["tfstate-&lt;env&gt; container"]
+    ID -- "Contributor" --> RG["adp-&lt;env&gt;-rg"]
+    ID -- "Blob Data Contributor" --> ST["adp&lt;env&gt;tf&lt;sfx&gt; / tfstate container"]
 ```
 
 - **No secrets in GitHub:** jobs authenticate through OIDC federated credentials, scoped to `environment:<env>`.
