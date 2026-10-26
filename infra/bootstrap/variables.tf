@@ -9,3 +9,9 @@ variable "location" {
   type        = string
   default     = "eastus"
 }
+
+variable "github_repository" {
+  description = "GitHub repo (owner/name) whose environments may federate into each env's identity."
+  type        = string
+  default     = "tymattes/azure-playground"
+}
