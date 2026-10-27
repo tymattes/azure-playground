@@ -5,3 +5,6 @@ provider "azurerm" {
   # Shared keys are disabled on the state accounts, so data-plane calls must use Entra ID.
   storage_use_azuread = true
 }
+
+# Entra ID is per tenant, not per subscription: tenant and credentials come from `az login`.
+provider "azuread" {}

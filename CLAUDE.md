@@ -23,6 +23,9 @@ AKS is out of scope for now. Repo is **public** (needed for free branch protecti
   - `infra/bootstrap/` — run once locally with `az login`. Per env: a resource group, a tfstate container, and an Entra app registration (federated credential `environment:<env>`) with Contributor on that env's RG and Storage Blob Data Contributor on that env's state container only. The dev identity can't touch prod, and the pipeline never needs Owner.
     - **One storage account per env** (in that env's RG), not a shared one: RG Contributor can `listKeys`, and a key bypasses container-scoped RBAC, so only separate accounts truly isolate envs. Shared key access disabled, blob versioning on; delete lock later.
     - **Bootstrap's own state is local** (gitignored, backed up outside the repo): it creates the remote backend (chicken-and-egg), has one operator, rarely changes, and is recoverable via `import` blocks. In a team it would move to a separately governed account.
+  - **Operator state access:** I hold Storage Blob Data Contributor (standing) on each env's `tfstate` container, assigned in bootstrap — Owner is control plane only and shared keys are off. CanNotDelete locks don't protect blobs; versioning does.
+  - **Entra via `hashicorp/azuread ~> 3.x`** (app registration, service principal, federated credential), authenticated by `az login`. Role assignments and locks stay in `azurerm`.
+  - **Resource provider registration:** targets set `resource_provider_registrations = "none"` (RG-scoped Contributor can't register providers). Bootstrap registers each namespace a target needs (`azurerm_resource_provider_registration`), added when that target arrives (e.g. `Microsoft.Web` for v1).
   - `infra/<target>/` (`appservice/`, `containerapps/`, `functions/`) — run by the pipeline. Same code for every env; differences in `<env>.tfvars`. State: `<target>.tfstate` in the env's container, chosen with `-backend-config`; backend uses `use_azuread_auth = true` (RBAC, not storage keys). No workspaces.
 - **Pipeline:**
   - **PR:** test + `terraform fmt/validate/plan`. *Open question:* which identity runs PR plans.
@@ -47,10 +50,10 @@ docs/pipeline.md   (pipeline diagrams; update in the same PR as workflow changes
 Read-only plan identity (PR plans + approve the exact saved prod plan) · App Service deployment slot + swap for zero-downtime prod deploys · modules · Key Vault + managed identity · tflint/checkov + drift detection.
 
 ## Current milestone
-- [ ] Step 0: Azure account + budget alert, `az`/`terraform`/Python 3.12 installed, Terraform entries added to `.gitignore` (commit `.terraform.lock.hcl` and the `*.tfvars` files — they hold no secrets here)
+- [x] Step 0: Azure account + budget alert, `az`/`terraform`/Python 3.12 installed, Terraform entries added to `.gitignore` (commit `.terraform.lock.hcl` and the `*.tfvars` files — they hold no secrets here)
   - [x] Python 3.12 (via uv)
   - [x] `az` + `terraform` installed, Terraform entries in `.gitignore`
-  - [ ] Budget alert confirmed saved
+  - [x] Budget alert confirmed saved
 - [x] Local FastAPI app with `GET /health` → `{"status": "ok"}`, one pytest test (FastAPI `TestClient`), runs with `uvicorn`
 - [x] `infra/bootstrap` — state storage only first; init/plan/apply by hand, inspect in the portal
-- [ ] `infra/bootstrap` identities — per-env Entra app registration, federated credential, role assignments; delete locks on state accounts
+- [x] `infra/bootstrap` identities — per-env Entra app registration, federated credential, role assignments; delete locks on state accounts

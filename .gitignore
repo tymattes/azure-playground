@@ -225,6 +225,7 @@ __marimo__/
 *.tfstate
 *.tfstate.*
 *.tfplan
+tfplan
 crash.log
 crash.*.log
 override.tf
@@ -233,3 +234,13 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+
+# Azure Functions (v3): local.settings.json holds connection strings
+local.settings.json
+.python_packages/
+
+# Local deploy artifacts (CI builds the real one)
+*.zip
+
+# macOS
+.DS_Store
