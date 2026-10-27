@@ -56,4 +56,4 @@ Read-only plan identity (PR plans + approve the exact saved prod plan) · App Se
   - [x] Budget alert confirmed saved
 - [x] Local FastAPI app with `GET /health` → `{"status": "ok"}`, one pytest test (FastAPI `TestClient`), runs with `uvicorn`
 - [x] `infra/bootstrap` — state storage only first; init/plan/apply by hand, inspect in the portal
-- [ ] `infra/bootstrap` identities — per-env Entra app registration, federated credential, role assignments; delete locks on state accounts
+- [x] `infra/bootstrap` identities — per-env Entra app registration, federated credential, role assignments; delete locks on state accounts
