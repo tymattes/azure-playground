@@ -12,6 +12,7 @@ resource "random_string" "suffix" {
   upper   = false
 }
 
+# One resource group per env, to isolate resources and RBAC.
 resource "azurerm_resource_group" "env" {
   for_each = var.environments
 
@@ -42,10 +43,23 @@ resource "azurerm_storage_account" "tfstate" {
   tags = merge(local.tags, { env = each.key })
 }
 
+# Container names are 3-63 chars: lowercase letters, numbers and single hyphens, starting with a letter or number.
 resource "azurerm_storage_container" "tfstate" {
   for_each = var.environments
 
   name                  = "tfstate"
   storage_account_id    = azurerm_storage_account.tfstate[each.key].id
   container_access_type = "private"
+}
+
+# Blocks deleting the state account, and therefore its RG, until the lock is removed.
+# Control plane only: blobs can still be overwritten or deleted (versioning covers that).
+# Deploy SPs are Contributor, which can't remove locks.
+resource "azurerm_management_lock" "tfstate" {
+  for_each = var.environments
+
+  name       = "tfstate-lock"
+  scope      = azurerm_storage_account.tfstate[each.key].id
+  lock_level = "CanNotDelete"
+  notes      = "Protects the tfstate storage account from accidental deletion."
 }

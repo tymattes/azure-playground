@@ -1,8 +1,11 @@
 # Entra side (Microsoft Graph). Role assignments live in rbac.tf.
 
+# Whoever runs bootstrap (the operator): owns the deploy apps and gets standing state access in rbac.tf.
 data "azuread_client_config" "current" {}
 
-# One deploy identity per env, used by GitHub Actions via OIDC.
+# One deploy identity per env, used by GitHub Actions via OIDC, so there's no secret to rotate.
+# Entra objects are tenant-wide, not in an RG: deleting an env's RG removes the role
+# assignments scoped to it, but not the app or SP.
 resource "azuread_application" "deploy" {
   for_each = var.environments
 
@@ -10,6 +13,7 @@ resource "azuread_application" "deploy" {
   owners       = [data.azuread_client_config.current.object_id]
 }
 
+# The app's instance in this tenant; it's the principal the roles in rbac.tf are assigned to.
 resource "azuread_service_principal" "deploy" {
   for_each = var.environments
 
